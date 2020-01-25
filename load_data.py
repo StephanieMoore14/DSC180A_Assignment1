@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 def get_table(year):
-    if year < 2018:
+    if int(year) < 2018:
         url = 'http://seshat.datasd.org/pd/vehicle_stops_{}_datasd_v1.csv'.format(year)
         df =  pd.read_csv(url)
         
@@ -15,7 +15,6 @@ def get_table(year):
   
 
 # helper functions for cleaning / merging
-
 def c_bool(string):
     if (string == 'Y') | (string =='y'):
         return 1
@@ -48,13 +47,13 @@ def create_outcome(df):
 def add_stop_reason(df):
     url = 'http://seshat.datasd.org/pd/ripa_stop_reason_datasd.csv'
     reason = pd.read_csv(url)
-    return df.merge(reason, on = 'stop_id').drop_duplicates().drop(columns=['PID', 'REASON_FOR_STOP_CODE_TEXT'])
+    return df.merge(reason, on = 'stop_id').drop_duplicates()
 
 
 def add_stop_outcome(df):
     url = 'http://seshat.datasd.org/pd/ripa_stop_result_datasd.csv'
     outcome = pd.read_csv(url)
-    return df.merge(outcome, on = 'stop_id').drop_duplicates().drop(columns=['PID', 'RESULTTEXT', 'CODE', 'RESULTKEY'])
+    return df.merge(outcome, on = 'stop_id').drop_duplicates()
 
 def add_data(df):
     df = add_stop_reason(df)
@@ -63,7 +62,7 @@ def add_data(df):
 
 
 def clean_results(year, df):
-    if year < 2018:        
+    if int(year) < 2018:        
         # do something
         mapper = {'stop_id': 'stop_id', 'stop_cause': 'stop_cause', 'service_area': 'service_area', 
                   'subject_race': 'driver_race', 'subject_sex': 'driver_sex', 'subject_age': 'driver_age',
@@ -73,6 +72,10 @@ def clean_results(year, df):
                  }
         col_keep = list(mapper.keys())
         change_bool = ['sd_resident', 'search_conducted', 'contraband_found', 'property_seized', 'arrest_made']
+        df = df[col_keep]
+        df = df.rename(columns=mapper)
+        df = make_bool(change_bool, df)
+        df = create_outcome(df)
             
     else: # year >= 2018
         # do something else
@@ -85,29 +88,38 @@ def clean_results(year, df):
                   'perceived_limited_english': 'perceived_limited_english'
                  }
         col_keep = list(mapper.keys())
-        change_bool = ['sd_resident', 'search_conducted', 'contraband_found', 'property_seized', 'arrest_made']
-
-    df = df[col_keep]
-    df = df.rename(columns=mapper)
-    df = make_bool(change_bool, df)
-    if year < 2018:
-        df = create_outcome(df)
-    
-    if year >= 2018: # additional merged
+        df = df.rename(columns=mapper)
+        df = make_bool(change_bool, df)
         df = add_data(df)
     
     return df 
 
-# The ingestion pipeline should take in the year (between 2014 and 2019) as a parameter
-def load_data(year, outpath):
-    if not os.path.exists(outpath):
-        os.mkdir(outpath)
 
-    # save df as csv
-    path = '{}/sdvehicle_stops_{}.csv'.format(outpath, year)
-    
-    results = get_table(year)
-    
-    # do some cleaning
-    clean_ = clean_results(year, results)    
-    clean_.to_csv(path)   
+
+# The ingestion pipeline should take in the year (between 2014 and 2019) as a parameter
+def load_data(years, outpath):
+    """
+    >>> load_data(["2015"], "data")
+    >>> os.path.exists("data")
+    >>> True
+    >>> os.path.isfile("data/sdvehicle_stops_2015.csv")
+    >>> True
+    >>> df = pd.read_csv("data/sdvehicle_stops_2015.csv")
+    >>> 'stop_id' in list(df.columns)
+    >>> True
+    >>> 'stop_cause' in list(df.columns)
+    >>> type(df['sd_resident'][0]) == int
+    >>> True
+    """
+    for year in years:
+        if not os.path.exists(outpath):
+            os.mkdir(outpath)
+
+            # save df as csv
+            path = '{}/sdvehicle_stops_{}.csv'.format(outpath, year)
+            
+            results = get_table(year)
+            
+            # do some cleaning
+            clean_ = clean_results(year, results)    
+            clean_.to_csv(path)   
