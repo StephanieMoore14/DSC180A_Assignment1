@@ -5,7 +5,7 @@ This assignment includes:
 - A description and justification of the data ingestion process in part 3 (report).
 - Development of code for ingesting and storing the data for later use (code).
 
-[Here](https://github.com/StephanieMoore14/DSC180A_Assignment1/report) is a link to the report.
+[Here](https://github.com/StephanieMoore14/DSC180A_Assignment1/report.pdf) is a link to the report.
 
 Part 1
 
